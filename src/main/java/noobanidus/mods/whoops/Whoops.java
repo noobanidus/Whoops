@@ -40,7 +40,7 @@ public class Whoops {
     }
 
     PlayerEntity player = event.getPlayer();
-    if (player instanceof FakePlayer || player.isSneaking()) {
+    if (player instanceof FakePlayer || player.isCrouching()) {
       return;
     }
 
@@ -54,13 +54,13 @@ public class Whoops {
     if (flowerBlock == ModSubtiles.pureDaisy || flowerBlock == ModSubtiles.pureDaisyFloating) {
       Hand curHand = event.getHand();
 
-      ItemStack item = player.getHeldItem(curHand);
+      ItemStack item = player.getItemInHand(curHand);
 
       if (item.isEmpty() || !(item.getItem() instanceof BlockItem)) {
         return;
       }
 
-      if (world.isRemote) {
+      if (world.isClientSide()) {
         event.setCanceled(true);
         event.setCancellationResult(ActionResultType.SUCCESS);
         return;
@@ -72,23 +72,23 @@ public class Whoops {
 
       for (int x = -1; x <= 1; x++) {
         for (int z = -1; z <= 1; z++) {
-          BlockPos potential = pos.add(x, 0, z);
+          BlockPos potential = pos.offset(x, 0, z);
           if (potential.equals(pos)) {
             continue;
           }
 
-          if (player.getDistanceSq((double) potential.getX(), (double) potential.getY(), (double) potential.getZ()) < 1.1 && player.getPosition().getY() == potential.getY()) {
+          if (player.distanceToSqr((double) potential.getX(), (double) potential.getY(), (double) potential.getZ()) < 1.1 && player.blockPosition().getY() == potential.getY()) {
             continue;
           }
 
           BlockState stateAt = world.getBlockState(potential);
           Block blockAt = stateAt.getBlock();
-          BlockState state = block.getDefaultState();
+          BlockState state = block.defaultBlockState();
 
           DirectionalPlaceContext context = new DirectionalPlaceContext(world, potential, Direction.DOWN, item, Direction.DOWN);
 
-          if ((stateAt.isReplaceable(context) || blockAt.isAir(stateAt, world, potential)) && state.isValidPosition(world, potential)) {
-            iBlock.tryPlace(context);
+          if ((stateAt.canBeReplaced(context) || blockAt.isAir(stateAt, world, potential)) && state.canSurvive(world, potential)) {
+            iBlock.place(context);
             event.setCanceled(true);
             event.setCancellationResult(ActionResultType.SUCCESS);
             return;
