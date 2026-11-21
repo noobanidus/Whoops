@@ -1,16 +1,23 @@
 package noobanidus.mods.whoops;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.DirectionalPlaceContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.Direction;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.DirectionalPlaceContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -18,83 +25,119 @@ import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import vazkii.botania.common.block.ModSubtiles;
 
-@Mod("whoops")
+import java.util.ArrayList;
+import java.util.List;
+
+@Mod(Whoops.MODID)
 @SuppressWarnings("WeakerAccess")
 public class Whoops {
+  public static final TagKey<Block> WHOOPS_BLOCKS = TagKey.create(Registry.BLOCK_REGISTRY, new ResourceLocation("whoops", "whoops_blocks"));
   public static final String MODID = "whoops";
 
   @SuppressWarnings("unused")
   public final static Logger LOG = LogManager.getLogger(MODID);
+
+  private static final double MARGIN = 0.05;
+
+  private static final int[][] OFFSETS = {
+      {-1, -1}, {-1, 0}, {-1, 1},
+      {0, -1}, {0, 1},
+      {1, -1}, {1, 0}, {1, 1}
+  };
 
   public Whoops() {
     MinecraftForge.EVENT_BUS.addListener(Whoops::onDaisyRightClick);
   }
 
   public static void onDaisyRightClick(PlayerInteractEvent.RightClickBlock event) {
-    World world = event.getWorld();
-
-    if (event.getHand() != Hand.MAIN_HAND) {
-      return;
-    }
-
-    PlayerEntity player = event.getPlayer();
-    if (player instanceof FakePlayer || player.isCrouching()) {
-      return;
-    }
-
     if (event.getUseBlock() == Event.Result.DENY || event.getUseItem() == Event.Result.DENY) {
       return;
     }
 
+    InteractionHand curHand = event.getHand();
+    if (curHand != InteractionHand.MAIN_HAND) {
+      return;
+    }
+
+    Player player = event.getPlayer();
+    if (player instanceof FakePlayer || player.isCrouching()) {
+      return;
+    }
+
+    ItemStack item = player.getItemInHand(curHand);
+    if (item.isEmpty() || !(item.getItem() instanceof BlockItem iBlock)) {
+      return;
+    }
+
     BlockPos pos = event.getPos();
+    Level level = event.getWorld();
+    BlockState curStateAt = level.getBlockState(pos);
+    if (!curStateAt.is(WHOOPS_BLOCKS)) {
+      return;
+    }
 
-    Block flowerBlock = world.getBlockState(pos).getBlock();
-    if (flowerBlock == ModSubtiles.pureDaisy || flowerBlock == ModSubtiles.pureDaisyFloating) {
-      Hand curHand = event.getHand();
+    BlockState state = iBlock.getBlock().defaultBlockState();
+    Vec3 eye = player.getEyePosition();
 
-      ItemStack item = player.getItemInHand(curHand);
+    BlockPos chosen = null;
+    boolean potentialEntityObstruction = false;
+    List<BlockPos> otherPotentials = new ArrayList<>();
 
-      if (item.isEmpty() || !(item.getItem() instanceof BlockItem)) {
-        return;
+    for (int[] offset : OFFSETS) {
+      BlockPos potential = pos.offset(offset[0], 0, offset[1]);
+
+      if (!state.canSurvive(level, potential)) {
+        continue;
       }
 
-      if (world.isClientSide()) {
-        event.setCanceled(true);
-        event.setCancellationResult(ActionResultType.SUCCESS);
-        return;
+      if (!level.isEmptyBlock(potential) && !level.getBlockState(potential)
+          .canBeReplaced(new DirectionalPlaceContext(level, potential, Direction.DOWN, item, Direction.DOWN))) {
+        continue;
       }
 
-      BlockItem iBlock = (BlockItem) item.getItem();
+      if (!level.isUnobstructed(state, potential, CollisionContext.empty())) {
+        potentialEntityObstruction = true;
+        continue;
+      }
 
-      Block block = iBlock.getBlock();
+      // Claude came up with this one. It means that this potential position is less likely to directly block line of sight of the pure daisy and thus prevent easy clicking 8 times to place a ring.
+      boolean pastX = offset[0] == 0 || (offset[0] > 0 ? eye.x > pos.getX() + 1 - MARGIN : eye.x < pos.getX() + MARGIN);
+      boolean pastZ = offset[1] == 0 || (offset[1] > 0 ? eye.z > pos.getZ() + 1 - MARGIN : eye.z < pos.getZ() + MARGIN);
 
-      for (int x = -1; x <= 1; x++) {
-        for (int z = -1; z <= 1; z++) {
-          BlockPos potential = pos.offset(x, 0, z);
-          if (potential.equals(pos)) {
-            continue;
-          }
+      if (!(pastX && pastZ)) {
+        chosen = potential;
+        break;
+      }
 
-          if (player.distanceToSqr((double) potential.getX(), (double) potential.getY(), (double) potential.getZ()) < 1.1 && player.blockPosition().getY() == potential.getY()) {
-            continue;
-          }
+      otherPotentials.add(potential);
+    }
 
-          BlockState stateAt = world.getBlockState(potential);
-          Block blockAt = stateAt.getBlock();
-          BlockState state = block.defaultBlockState();
+    if (chosen == null && !otherPotentials.isEmpty()) {
+      Vec3 hit = event.getHitVec().getLocation();
+      VoxelShape shape = curStateAt.getShape(level, pos);
+      Vec3 centre = shape.isEmpty() ? Vec3.atCenterOf(pos) : shape.bounds().move(pos).getCenter();
 
-          DirectionalPlaceContext context = new DirectionalPlaceContext(world, potential, Direction.DOWN, item, Direction.DOWN);
+      chosen = otherPotentials.get(0);
 
-          if ((stateAt.canBeReplaced(context) || blockAt.isAir(stateAt, world, potential)) && state.canSurvive(world, potential)) {
-            iBlock.place(context);
-            event.setCanceled(true);
-            event.setCancellationResult(ActionResultType.SUCCESS);
-            return;
-          }
+      for (BlockPos candidate : otherPotentials) {
+        AABB box = new AABB(candidate).inflate(MARGIN);
+        if (box.clip(eye, hit).isEmpty() && box.clip(eye, centre).isEmpty()) {
+          chosen = candidate;
+          break;
         }
       }
+    }
+
+    if (chosen != null) {
+      if (!level.isClientSide()) {
+        iBlock.place(new DirectionalPlaceContext(level, chosen, Direction.DOWN, item, Direction.DOWN));
+      }
+      event.setCanceled(true);
+      event.setCancellationResult(InteractionResult.SUCCESS);
+    } else if (potentialEntityObstruction) {
+      event.setCanceled(true);
+      event.setCancellationResult(InteractionResult.FAIL);
     }
   }
 }
