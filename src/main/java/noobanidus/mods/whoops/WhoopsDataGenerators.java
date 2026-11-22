@@ -7,9 +7,9 @@ import net.minecraft.data.tags.BlockTagsProvider;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.data.ExistingFileHelper;
+import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.forge.event.lifecycle.GatherDataEvent;
 import org.jetbrains.annotations.Nullable;
 
 @Mod.EventBusSubscriber(modid = Whoops.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -18,7 +18,7 @@ public class WhoopsDataGenerators {
   public static void gatherData(GatherDataEvent event) {
     if (event.includeServer()) {
       ExistingFileHelper helper = event.getExistingFileHelper();
-      event.getGenerator().addProvider(new BlockTags(event.getGenerator(), helper));
+      event.getGenerator().addProvider(true, new BlockTags(event.getGenerator(), helper));
     }
   }
 

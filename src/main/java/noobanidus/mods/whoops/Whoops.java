@@ -60,7 +60,7 @@ public class Whoops {
       return;
     }
 
-    Player player = event.getPlayer();
+    Player player = event.getEntity();
     if (player instanceof FakePlayer || player.isCrouching()) {
       return;
     }
@@ -71,7 +71,7 @@ public class Whoops {
     }
 
     BlockPos pos = event.getPos();
-    Level level = event.getWorld();
+    Level level = event.getLevel();
     BlockState curStateAt = level.getBlockState(pos);
     if (!curStateAt.is(WHOOPS_BLOCKS)) {
       return;
