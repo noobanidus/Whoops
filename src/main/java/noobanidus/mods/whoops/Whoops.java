@@ -3,6 +3,7 @@ package noobanidus.mods.whoops;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
@@ -32,7 +33,7 @@ import java.util.List;
 @Mod(Whoops.MODID)
 @SuppressWarnings("WeakerAccess")
 public class Whoops {
-  public static final TagKey<Block> WHOOPS_BLOCKS = TagKey.create(Registry.BLOCK_REGISTRY, new ResourceLocation("whoops", "whoops_blocks"));
+  public static final TagKey<Block> WHOOPS_BLOCKS = TagKey.create(Registries.BLOCK, new ResourceLocation("whoops", "whoops_blocks"));
   public static final String MODID = "whoops";
 
   @SuppressWarnings("unused")

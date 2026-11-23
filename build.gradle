@@ -29,7 +29,7 @@ sourceSets.main.resources {
 }
 
 minecraft {
-    mappings channel: 'official', version: '1.19.2'
+    mappings channel: 'official', version: '1.20.1'
 
     accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
 
@@ -109,11 +109,11 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-    implementation fg.deobf("vazkii.patchouli:Patchouli:1.19.2-76") { transitive = false }
+    implementation fg.deobf("vazkii.patchouli:Patchouli:1.20.1-84-FORGE") { transitive = false }
     implementation fg.deobf("vazkii.botania:Botania:${botania_version}-FORGE-SNAPSHOT")
 
-    compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:1.19.2-5.1.1.0:api")
-    runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:1.19.2-5.1.1.0")
+    compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:5.4.2+1.20.1:api")
+    runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:5.4.2+1.20.1")
 }
 
 jar {
